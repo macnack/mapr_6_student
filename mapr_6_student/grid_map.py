@@ -1,13 +1,15 @@
 from copy import copy
 import numpy as np
-import rospy as rp
+from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import OccupancyGrid, Path
 from visualization_msgs.msg import Marker, MarkerArray
+from rclpy import qos
 
 
-class GridMap(object):
-    def __init__(self):
+class GridMap(Node):
+    def __init__(self, node_name='graph_search'):
+        super().__init__(node_name)
         self.map = None
         self.start = None
         self.end = None
@@ -15,15 +17,26 @@ class GridMap(object):
         self.width = None
         self.height = None
         self.parent = {}
-        rp.init_node('graph_search', log_level=rp.DEBUG)
-        rp.Subscriber('map', OccupancyGrid, self.map_callback)
-        rp.Subscriber('point_start', Marker, self.set_start)
-        rp.Subscriber('point_end', Marker, self.set_end)
-        self.path_pub = rp.Publisher('path', Path, queue_size=10)
-        self.search_pub = rp.Publisher('search', Marker, queue_size=10)
-        while self.map is None or self.start is None or self.end is None:
-            rp.sleep(0.1)
-        print("Object initialized!")
+
+        qos_profile = qos.QoSProfile(depth=10)
+        qos_profile.durability = qos.DurabilityPolicy.TRANSIENT_LOCAL
+
+        self.sub_map = self.create_subscription(OccupancyGrid, 'map', self.map_callback, qos_profile)
+        self.sub_start_pt = self.create_subscription(Marker, 'point_start', self.set_start, 10)
+        self.sub_end_pt = self.create_subscription(Marker, 'point_end', self.set_end, 10)
+        
+        self.pub_search = self.create_publisher(Marker, 'search', 10)
+        self.pub_path= self.create_publisher(Path, 'path', 10)
+
+        self.get_logger().info("Object initialized!")
+
+
+    def data_received(self):
+        if self.map is None or self.start is None or self.end is None:
+            return False
+        else:
+            return True
+        
 
     def map_callback(self, data):
         self.resolution = data.info.resolution
@@ -54,10 +67,10 @@ class GridMap(object):
             pt = Point()
             pt.x = p[0]
             pt.y = p[1]
-            pt.z = 0.
+            pt.z = 0.0
             marker.points.append(pt)
         marker.header.frame_id = "map"
-        marker.header.stamp = rp.Time.now()
+        marker.header.stamp = self.get_clock().now().to_msg()
         marker.id = 0
         marker.type = Marker.LINE_LIST
         marker.color.r = 0.
@@ -69,7 +82,7 @@ class GridMap(object):
             if v is None: continue
             add_point(k)
             add_point(v)
-        self.search_pub.publish(marker)
+        self.pub_search.publish(marker)
 
     def publish_path(self, path):
         path_msg = Path()
@@ -79,14 +92,14 @@ class GridMap(object):
             pose.pose.position.x = p[0]
             pose.pose.position.y = p[1]
             pose.pose.position.z = 0.001
-            pose.pose.orientation.x = 0
-            pose.pose.orientation.y = 0
-            pose.pose.orientation.z = 0
-            pose.pose.orientation.w = 1
+            pose.pose.orientation.x = 0.0
+            pose.pose.orientation.y = 0.0
+            pose.pose.orientation.z = 0.0
+            pose.pose.orientation.w = 1.0
             pose.header.frame_id = 'map'
-            pose.header.stamp = rp.Time.now()
+            pose.header.stamp = self.get_clock().now().to_msg()
             path_msg.poses.append(pose)
-        self.path_pub.publish(path_msg)
+        self.pub_path.publish(path_msg)
 
     def search(self):
         return NotImplementedError()

@@ -1,6 +1,6 @@
-#!/usr/bin/env python
-import rospy as rp
-from grid_map import GridMap
+import rclpy
+import time
+from mapr_6_student.grid_map import GridMap
 import numpy as np
 
 np.random.seed(444)
@@ -9,7 +9,6 @@ np.random.seed(444)
 class RRT(GridMap):
     def __init__(self):
         super(RRT, self).__init__()
-        self.step = 0.1
 
     def check_if_valid(self, a, b):
         """
@@ -31,23 +30,26 @@ class RRT(GridMap):
 
     def find_closest(self, pos):
         """
-        Finds the closest vertex in the graph to the pos argument
+        Finds the closest point in the graph (closest vertex or closes point on edge) to the pos argument
+        If the point is on the edge, modifies the graph to obtain the valid graph with the new point and two new edges
+        connecting existing vertices
 
         :param pos: point id 2D
-        :return: vertex from graph in 2D closest to the pos
+        :return: point from graph in 2D closest to the pos
         """
         closest = pos
         return closest
 
     def new_pt(self, pt, closest):
         """
-        Finds the point on the segment connecting closest with pt, which lies self.step from the closest (vertex in graph)
+        Finds last point in the free space on the segment connecting closest with pt
 
         :param pt: point in 2D
         :param closest: vertex in the tree (point in 2D)
         :return: point in 2D
         """
         return pt
+
 
     def search(self):
         """
@@ -57,10 +59,22 @@ class RRT(GridMap):
         Uses self.publish_search() and self.publish_path(path) to publish the search tree and the final path respectively.
         """
         self.parent[self.start] = None
-        while not rp.is_shutdown():
-            rp.sleep(0.01)
+        # while not rp.is_shutdown():
+        #     rp.sleep(0.01)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    rrt = RRT()
+    while not rrt.data_received():
+        rrt.get_logger().info("Waiting for data...")
+        rclpy.spin_once(rrt)
+        time.sleep(0.5)
+
+    rrt.get_logger().info("Start graph searching!")
+    time.sleep(1)
+    rrt.search()
 
 
 if __name__ == '__main__':
-    rrt = RRT()
-    rrt.search()
+    main()
