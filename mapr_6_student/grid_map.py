@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import OccupancyGrid, Path
 from visualization_msgs.msg import Marker, MarkerArray
 from rclpy import qos
+import time
 
 
 class GridMap(Node):
@@ -42,6 +43,8 @@ class GridMap(Node):
         self.resolution = data.info.resolution
         self.width = data.info.width * self.resolution
         self.height = data.info.height * self.resolution
+        # self.get_logger().info(f"{data.info.width}, {data.info.height}")
+        # self.get_logger().info(f"{self.resolution}, {self.width}, {self.height}")
         map = np.array(data.data)
         map = np.reshape(map, (data.info.height, data.info.width))
         #map = np.reshape(map, (data.info.width, data.info.height))
@@ -61,7 +64,7 @@ class GridMap(Node):
         x, y = self.get_marker_xy(data)
         self.end = (x, y)
 
-    def publish_search(self):
+    def publish_search(self, delay=0.01):
         marker = Marker()
         def add_point(p):
             pt = Point()
@@ -83,6 +86,7 @@ class GridMap(Node):
             add_point(k)
             add_point(v)
         self.pub_search.publish(marker)
+        time.sleep(delay)
 
     def publish_path(self, path):
         path_msg = Path()
