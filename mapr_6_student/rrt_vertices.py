@@ -57,8 +57,6 @@ class RRT(GridMap):
         Uses self.publish_search() and self.publish_path(path) to publish the search tree and the final path respectively.
         """
         self.parent[self.start] = None
-        # while not self.rp.is_shutdown():
-        #     rp.sleep(0.01)
 
 
 
