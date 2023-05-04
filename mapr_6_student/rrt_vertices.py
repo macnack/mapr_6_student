@@ -9,7 +9,7 @@ np.random.seed(444)
 class RRT(GridMap):
     def __init__(self):
         super(RRT, self).__init__()
-        self.step = 0.1
+        self.step = 0.05
 
     def check_if_valid(self, a, b):
         """
@@ -19,6 +19,17 @@ class RRT(GridMap):
         :return: boolean
         """
         in_free_space = True
+        pt_b = np.array([b[0], b[1]])
+        pt_a = np.array([a[0], a[1]])
+        steps = np.linspace(pt_b, pt_a, num=100)
+        height, width = self.map.shape
+        for step in steps:
+            step *= 1.0 / self.resolution
+            if step[0] < 0 or step[1] < 0 or step[1] > height or step[0] > width:
+                return False
+            if self.map[int(step[1]), int(step[0])] == 100:
+                in_free_space = False
+                break
         return in_free_space
 
     def random_point(self):
@@ -26,8 +37,11 @@ class RRT(GridMap):
         Draws random point in 2D
         :return: point in 2D
         """
-        x = y = 0.
-        return np.array([x, y])
+        x = np.random.random(1) * self.width
+        # x = np.around(x, decimals=1)
+        y = np.random.random(1) * self.height
+        # y = np.around(y, decimals=1)
+        return (x[0], y[0])
 
     def find_closest(self, pos):
         """
@@ -36,8 +50,14 @@ class RRT(GridMap):
         :param pos: point id 2D
         :return: vertex from graph in 2D closest to the pos
         """
-        closest = pos
-        return closest
+        distance = []
+        childs = []
+        pos = np.array([pos[0], pos[1]])
+        for child in self.parent.keys():
+            delta = np.array([child[0], child[1]]) - pos
+            distance.append(np.linalg.norm(delta))
+            childs.append(child)
+        return childs[np.argmin(distance)]
 
     def new_pt(self, pt, closest):
         """
@@ -47,7 +67,14 @@ class RRT(GridMap):
         :param closest: vertex in the tree (point in 2D)
         :return: point in 2D
         """
-        return pt
+        closest_ = np.array([closest[0], closest[1]])
+        pt_ = np.array([pt[0], pt[1]])
+        delta = pt_ - closest_
+        norms = np.linalg.norm(delta)
+        direction = delta / norms
+        self.get_logger().info("min is{}".format(min(self.step, norms)))
+        new = closest_ + direction * min(self.step, norms)
+        return (new[0], new[1])
 
     def search(self):
         """
@@ -57,7 +84,24 @@ class RRT(GridMap):
         Uses self.publish_search() and self.publish_path(path) to publish the search tree and the final path respectively.
         """
         self.parent[self.start] = None
-
+        while True:
+            x_rand = self.random_point()
+            x_near = self.find_closest(x_rand)
+            x_new = self.new_pt(x_rand, x_near)
+            if self.check_if_valid(x_new, x_near):
+                self.parent[x_new] = x_near
+                self.publish_search()
+                if self.check_if_valid(x_new, self.end):
+                    self.get_logger().info("Connects to end {} and near{}".format(x_new, self.end))
+                    self.parent[self.end] = x_new
+                    cur_n = self.end
+                    path = []
+                    while cur_n is not None:
+                        path.append(cur_n)
+                        cur_n = self.parent[cur_n]
+                    print(path)
+                    self.publish_path(path)
+                    break
 
 
 def main(args=None):
