@@ -72,7 +72,6 @@ class RRT(GridMap):
         delta = pt_ - closest_
         norms = np.linalg.norm(delta)
         direction = delta / norms
-        self.get_logger().info("min is{}".format(min(self.step, norms)))
         new = closest_ + direction * min(self.step, norms)
         return (new[0], new[1])
 
@@ -92,7 +91,6 @@ class RRT(GridMap):
                 self.parent[x_new] = x_near
                 self.publish_search()
                 if self.check_if_valid(x_new, self.end):
-                    self.get_logger().info("Connects to end {} and near{}".format(x_new, self.end))
                     self.parent[self.end] = x_new
                     cur_n = self.end
                     path = []
